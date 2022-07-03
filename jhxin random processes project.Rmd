@@ -1,0 +1,507 @@
+---
+title: "Random processes project"
+author: "Jiahui Xin"
+date: "`r Sys.Date()`"
+geometry: "left=2cm,right=2cm,top=2cm,bottom=2cm"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+    fig_height: 4
+    fig_width: 5
+    fig_caption: yes
+    number_sections: yes
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+set.seed=114514
+```
+
+
+# Basic Parts
+
+## 3.9
+
+*Exercise*
+
+Let $x(t)$ be a stationary Gaussian process with $E(x(t))=0$, covariance function $r_{x}(t)$, and spectral density $f_{x}(\omega)$. Find the covariance function for
+$$
+y(t)=x^{2}(t)-r_{x}(0),
+$$
+and show that it has the spectral density
+$$
+f_{y}(\omega)=2 \int_{-\infty}^{\infty} f_{x}(\mu) f_{x}(\omega-\mu) \mathrm{d} \mu .
+$$
+
+*Solution*
+
+We first calculate the moment $E\left(u^{2} v^{2}\right)$ for bivariate normal variables $u, v$. It can be found from the coefficient of $s^{2} t^{2} / 4$ ! in the series expansion of the moment generating function (or the characteristic function),
+$$
+\begin{aligned}
+E\left(e^{s u+t v}\right) &=1+s E(u)+t E(v)+\frac{s^{2} E\left(u^{2}\right)+2 s t E(u v)+t^{2} E\left(v^{2}\right)}{2 !} \\
+&+\ldots+\frac{\ldots+6 s^{2} t^{2} E\left(u^{2} v^{2}\right)+\ldots}{4 !}+\ldots
+\end{aligned}
+$$
+If $u, v$ are bivariate Gaussian variables, with mean 0, variance 1, and correlation coefficient $\rho$, then the moment generating function is
+$$
+E\left(e^{s u+t v}\right)=e^{\frac{1}{2}\left(s^{2}+2 \rho s t+t^{2}\right)}=\ldots+\frac{\ldots+2 s^{2} t^{2}+4 \rho^{2} s^{2} t^{2}+\ldots}{8}+\ldots
+$$
+giving $E\left(u^{2} v^{2}\right)=1+2 \rho^{2}$. Thus, $r_{y}(\tau)=Cov\left(x^{2}(0), x^{2}(\tau)\right)$ is equal to $E\left(x^{2}(0) x^{2}(\tau)\right)-r_{x}^{2}(0)=(1+2 \rho_\tau^{2})r_{x}^{2}(0) - r_{x}^{2}(0) =2 r_{x}^{2}(\tau)$. 
+
+The second part follows immediately from the fact that multiplication of two covariance functions (here $r_{x}(\tau)$ and $r_{x}(\tau)$ ) corresponds to convolution of the corresponding spectral densities. Note the analogy between convolution of probability densities and multiplication of the characteristic functions ($f_1*f_2\leftrightarrow r_1\times r_2$).
+
+As a result, we have
+$$
+f_y(w) = 2 f_x(w)*f_x(w) = 2\int_{-\infty}^{\infty}f_x(\mu)f_x(w-\mu)d\mu.
+$$
+
+## Ornstein–Uhlenbeck process
+
+Further, assume that the process in the title is an OU process that satisfies the following stochastic differential equation:
+
+$$
+a x(t)+x^{\prime}(t)=\sqrt{2 a} w^{\prime}(t), w^{\prime}(t) \text { where $w^{\prime}(t)$ is Gaussian white noise.}
+$$
+
+### Analytical nature of the process, applicable scenarios, and programming to sample from the process (sample path function display).
+
+The general form of Ornstein–Uhlenbeck process satisfies:
+$$
+d x_{t}=\theta\left(\mu-x_{t}\right) d t+\sigma d W_{t},
+$$
+here $W_t$ is Wiener process (i.e., $dW_t$ is Gaussian white noise).
+
+The stochastic differential equation for $x_{t}$ can be formally solved by variation of parameters. Writing
+$$
+f\left(x_{t}, t\right)=x_{t} e^{\theta t}
+$$
+we get
+$$
+\begin{aligned}
+d f\left(x_{t}, t\right) &=\theta x_{t} e^{\theta t} d t+e^{\theta t} d x_{t} \\
+&=e^{\theta t} \theta \mu d t+\sigma e^{\theta t} d W_{t} .
+\end{aligned}
+$$
+Integrating from 0 to $t$ we get
+$$
+x_{t} e^{\theta t}=x_{0}+\int_{0}^{t} e^{\theta s} \theta \mu d s+\int_{0}^{t} \sigma e^{\theta s} d W_{s}
+$$
+whereupon we see
+$$
+x_{t}=x_{0} e^{-\theta t}+\mu\left(1-e^{-\theta t}\right)+\sigma \int_{0}^{t} e^{-\theta(t-s)} d W_{s}.
+$$
+
+Corresponding sample function we can get as follows.
+
+```{r}
+r_ou <- function(T,n,mu,theta,sigma,x0){
+  # dX(t) = theta * (mu - X(t)) * dt + sigma * dW(t)
+  #T: period length, n: number of simulation
+  dw  <- rnorm(n, 0, sqrt(T/n))#differences of wiener process
+  dt  <- T/n
+  x <- c(x0)
+  for (i in 2:(n+1)) {
+    x[i]  <-  x[i-1] + theta*(mu-x[i-1])*dt + sigma*dw[i-1]
+  }
+  return(x[-1]);
+}
+```
+
+With the original denotion, $\theta=a,\mu=0,\sigma=\sqrt{2a}$. Furthermore we set $x_0=0$
+```{r}
+a=1
+x<-r_ou(T=10,n=100,mu=0,theta=a,sigma=sqrt(2*a),x0=0)
+head(x,10)#plot(x,type="l")
+```
+
+### The spectral representation of the process, including covariance function, spectral density (or periodogram function), discuss the properties of the process parameters on the above two functions, and and the effects of the nature of the stochastic process itself.
+
+*About $x_t$*
+
+First consider the general form, then plug $a$ into it.
+$$
+\mathrm{E}\left(x_{t}\right)=x_{0} e^{-\theta t}+\mu\left(1-e^{-\theta t}\right).
+$$
+$$
+\begin{aligned}
+\operatorname{cov}\left(x_{s}, x_{t}\right) &=\mathrm{E}\left[\left(x_{s}-\mathrm{E}\left[x_{s}\right]\right)\left(x_{t}-\mathrm{E}\left[x_{t}\right]\right)\right] \\
+&=\mathrm{E}\left[\int_{0}^{s} \sigma e^{\theta(u-s)} d W_{u} \int_{0}^{t} \sigma e^{\theta(v-t)} d W_{v}\right] \\
+&=\sigma^{2} e^{-\theta(s+t)} \mathrm{E}\left[\int_{0}^{s} e^{\theta u} d W_{u} \int_{0}^{t} e^{\theta v} d W_{v}\right] \\
+&=\frac{\sigma^{2}}{2 \theta} e^{-\theta(s+t)}\left(e^{2 \theta \min (s, t)}-1\right) \\
+&=\frac{\sigma^{2}}{2 \theta}\left(e^{-\theta|t-s|}-e^{-\theta(t+s)}\right).
+\end{aligned}
+$$
+Let $t,s\to\infty$, the covariance function of $x_t$ is $r_x(t)=\frac{\sigma^{2}}{2 \theta}e^{-\theta|t|}$. Plug $\theta=a,\sigma=\sqrt{2a}$ into it,
+$$
+r_x(t)=e^{-a|t|}.
+$$
+The corresponding spectral density is
+$$
+f_x(w)=\frac 1 {2\pi}\int_{\mathbb R} e^{-iwt}r_x(t)dt=\frac{a}{\pi(a^2+w^2)}.
+$$
+
+
+
+
+*About $y_t=x_t^2-r_x(0)$*
+
+By the conclusion before, we have
+$$
+r_y(t)=2r_x^2(t)=2e^{-2a|t|}
+$$
+and
+$$
+\begin{aligned}
+f_y(w)&=\frac 1 {2\pi}\int_{\mathbb R} e^{-iwt}r_y(t)dt\\
+&=2 \frac 1 {2\pi}\int_{\mathbb R} e^{-iwt}r_x(t,2a)dt\text{, (Note that } r_y(t,a)=2 r_x(t,2a))\\
+&=2 \frac{2a}{(2a)^2+w^2}\\
+&=\frac{4a}{4a^2+w^2}.
+\end{aligned}
+$$
+*About Parameter $a$*
+
+The parameter $a$ can be seen as the dependence between sample points. For large $a(a \rightarrow \infty)$, the covariance function falls off very rapidly around $t=0$ and the correlation between $x(s)$ and $x(t)$ becomes negligible when $s \neq t$. With increasing $a$, the spectral density becomes increasingly flatter at the same time as $f(w) \rightarrow 0$. But whatever $a$, $r_x(0)=1$ which means the process keeps the same variance. Actually, $\lim_{a\to\infty} x_t$ is Gaussian white noise and $\lim_{a\to0} x_t$ is constant process.
+
+$y_t$ has similar covariance function and spectral density.
+
+```{r,eval=T,echo=F}
+par(mfrow=c(2,2))
+plot((x1=r_ou(T=10,n=1000,mu=0,theta=0.1,sigma=sqrt(2*0.1),x0=0)),type="l",ylab="a=0.1")#a=0.1
+plot((x2=r_ou(T=10,n=1000,mu=0,theta=1,sigma=sqrt(2*1),x0=0)),type="l",ylab="a=1")#a=1
+plot((x3=r_ou(T=10,n=1000,mu=0,theta=10,sigma=sqrt(2*10),x0=0)),type="l",ylab="a=10")#a=10
+plot((x4=r_ou(T=10,n=1000,mu=0,theta=100,sigma=sqrt(2*100),x0=0)),type="l",ylab="a=100")#a=100
+mtext("x_t", side = 3, line = -24, outer = TRUE)
+```
+
+```{r,eval=T,echo=F}
+par(mfrow=c(2,2))
+plot((y1=x1^2-1),type="l",ylab="a=0.1")#a=0.1
+plot((y2=x2^2-1),type="l",ylab="a=1")#a=1
+plot((y3=x3^2-1),type="l",ylab="a=10")#a=10
+plot((y4=x4^2-1),type="l",ylab="a=100")#a=100
+mtext("y_t", side = 3, line = -24, outer = TRUE)
+```
+
+### Perform linear time-invariant filtering (filters) on the process to verify the effects of different filters.
+
+$$
+\hat x(t)=\int_{-\infty}^{\infty} h(u) x(t-u) \mathrm{d} u=\int_{-\infty}^{\infty} h(t-u) x(u) \mathrm{d} u
+$$
+
+*Low-pass filter*
+Low-pass filter with $g(w)=\frac 1 {w_b}$ when $|w|<w_b$, and 0 otherwise, which has $h(u)=\frac{\sin (w_b u)}{2 \pi u}$.
+
+```{r,include = FALSE}
+h<-function(u,w_b){
+  return(sin(u*w_b)/2/pi/u)
+}
+n=1000
+T=10
+u=seq(T/n,T,length.out=n)
+par(mfrow=c(2,2))
+plot(h(u,w_b=0.1),type="l")
+plot(h(u,w_b=1),type="l")
+plot(h(u,w_b=10),type="l")
+plot(h(u,w_b=100),type="l")
+include = FALSE
+```
+
+```{r,echo=F}
+n_filter = 100
+par(mfrow=c(2,2))
+x4_filter1=filter(x4,h(u,w_b=10)[1:n_filter],method="convolution")*T/n
+x4_filter2=filter(x4,h(u,w_b=100)[1:n_filter],method="convolution")*T/n
+x4_filter3=filter(x4,h(u,w_b=1000)[1:n_filter],method="convolution")*T/n
+plot(x4,type="l")
+plot(x4_filter1,ylab="low-pass w_b=10")
+plot(x4_filter2,ylab="low-pass w_b=100")
+plot(x4_filter3,ylab="low-pass w_b=1000")
+mtext("x4 low-pass filtered with w_b", side = 3, line = -24, outer = TRUE)
+```
+
+
+*deviation filter (Increasing high-frequency part)*
+$$
+\hat x(t)=x^\prime(t)\text{ with impulse response } \delta_0^\prime(u)\text{ and frequency response } iw.
+$$
+
+```{r,echo=F}
+par(mfrow=c(2,2))
+y1_filter=diff(y1)/(T/n)
+y2_filter=diff(y2)/(T/n)
+plot(y1,type="l")
+plot(y1_filter,type="l",ylab="y1_diff")
+plot(y2,type="l")
+plot(y2_filter,type="l",ylab="y2_diff")
+mtext("y filtered by differential operator", side = 3, line = -24, outer = TRUE)
+```
+
+
+
+### Generate several samples of the random process, state the calculation steps of KL decomposition, and program to realise the process and display the results.
+
+
+*Karhunen-Loève expansion*
+
+Generate 1000 sample paths with 100 points per path.
+```{r,include=F}
+a=1
+T=10
+n=100
+num=1000
+r_ou <- function(T,n,mu,theta,sigma,x0){
+  # dX(t) = theta * (mu - X(t)) * dt + sigma * dW(t)
+  #T: period length, n: number of simulation
+  dw  <- rnorm(n, 0, sqrt(T/n))#differences of wiener process
+  dt  <- T/n
+  x <- c(x0)
+  for (i in 2:(n+1)) {
+    x[i]  <-  x[i-1] + theta*(mu-x[i-1])*dt + sigma*dw[i-1]
+  }
+  return(x[-1]);
+}
+data=c()
+for(i in 1:num){
+  x=r_ou(T=10,n=100,mu=0,theta=a,sigma=sqrt(2*a),x0=0)
+  data=rbind(data,x)
+}
+```
+
+
+Use pca to get coefficients and rotations (eigenfunctions) of KL expansion:
+
+* step 1, calculate empirical covariance $S$.
+
+* step 2, Do *singular value decomposition* onto $S=UDU^\prime$ to get $D$ (component variance) and $U$ (rotation matrix).
+
+* step 3, transform original data matrix $X_{n\times p}$ to $Y_{n\times p}=X_{n\times p}U$ and donote $Y$ as coefficient matrix.
+
+* step 4, keep the first $n_{trun}$ columns of $U$ and $Y$ as $U_{trun}$ and $Y_{trun}$ respectively and calculate the $n_{trun}$-order approximation $X_{trun}=Y_{trun}U_{trun}^\prime$. 
+
+
+```{r}
+pca<-prcomp(data,center=F)
+
+coeff=pca$x
+rotat=pca$rotation
+
+
+```
+
+Test normalality and magnitude of coefficient of eigenfunctions (p-value of nomality test).
+```{r,echo=F}
+for(i in 1:3){
+  print(paste("coefficent",i,"with variance",var(coeff[,i]),"has p-value",shapiro.test(coeff[,i])$p.value))
+}
+```
+
+It is ok to fit a trend with only the first 10 eigenfunctions.
+
+```{r,echo=F}
+n_trun=10
+coeff_trun=coeff
+coeff_trun[,-(1:n_trun)]=0
+data_trun=coeff_trun%*%t(rotat)
+par(mfrow=c(3,3))
+for(i in 1:9){
+  plot(data[i,],type="l",xlab=paste("sample",i),
+       ylab="value",main="sample path")
+  points(data_trun[i,],type="l",col=2)
+}
+```
+
+
+# Application
+
+*Use Whittle-Matern Family (see Example 4.11) to fit an real data set, briefly state the purpose and process of the analysis, and show the numerical result.*
+
+
+## Use R package *gstat* and *sp* to implement krigging algorithm (fitting variogram with Matern family)
+
+
+
+Data is *baltimore* in the package *spData*. I used *krigging* algorithm to predict unobserved point values in the field and in the step of fitting variogram, I used *Mattern* family.
+
+```{r,include=F}
+library(gstat)
+library(sp)
+library(spData)
+library(lattice)
+data(baltimore)
+
+baltimore.train <- baltimore[sample(1:nrow(baltimore),round(nrow(baltimore)/2)) ,c("X", "Y", "PRICE")]
+str(baltimore.train)
+
+baltimore.train <- cbind(baltimore.train, lgpr = log(baltimore.train$PRICE))
+str(baltimore.train)
+#hist(baltimore.train$lgpr)
+```
+
+
+Here I only used the price and the coordinates to construct a rough spatial model.
+```{r}
+names(baltimore)
+```
+
+
+```{r,include=F}
+baltimore.test <- baltimore[setdiff(rownames(baltimore), rownames(baltimore.train)),
+c("X", "Y", "PRICE")]
+baltimore.test <- cbind(baltimore.test, lgpr = log(baltimore.test$PRICE))
+str(baltimore.test)
+#hist(baltimore.test$PRICE)
+```
+
+```{r,include=F}
+baltimore<-baltimore[,c("X", "Y", "PRICE")]
+baltimore <- cbind(baltimore, lgpr = log(baltimore$PRICE))
+str(baltimore)
+#hist(baltimore$lgpr)
+```
+
+
+
+```{r,include=F}
+coordinates(baltimore) <- ~ X+Y
+coordinates(baltimore.train) <- ~ X+Y
+coordinates(baltimore.test) <- ~ X+Y
+```
+
+## Split train set and test set (Vaildation  & Cross validation)
+```{r,echo=F}
+xyplot(Y ~ X, as.data.frame(baltimore), asp="iso",
+panel = function(x, ...) {
+panel.points(coordinates(baltimore),
+cex=0.5*(log(baltimore$PRICE) - 1),
+pch=1, col="blue");
+panel.points(coordinates(baltimore.train),
+cex=0.5*(log(baltimore.train$PRICE) - 1),
+pch=20, col="red");
+panel.grid(h=-1, v=-1, col="darkgrey")
+},
+main="Red points (train set) and others (test set) ")
+
+```
+
+Fitted variogram with *Matern* family on the train set.
+```{r}
+vgm.train = variogram(lgpr~1, baltimore.train)
+fit.train = fit.variogram(vgm.train, model = vgm(1, "Mat", 30, 1))
+fit.train
+plot(vgm.train, fit.train, main="Fit variogram with Matern family.")
+```
+
+Then use the fitted variogram to do *krigging* on the test set.
+
+```{r,include=F}
+k <- krige(lgpr ~ 1, baltimore.train, baltimore.test, fit.train)
+
+#summary(k)
+ 
+diff <- k$var1.pred - baltimore.test$lgpr
+
+diff.df <- as.data.frame(diff)
+coordinates(diff.df) <- coordinates(baltimore.test)
+bubble(diff.df, zcol="diff", pch=1,
+main="Krigging evaluation errors at test points, log(Price)")
+```
+
+
+Also used the fitted variogram on the train set to do krigging (cross-validation version) on the whole set. Compare the error graphs as follows.
+
+```{r}
+k <- krige(lgpr ~ 1, baltimore.train, baltimore.test, fit.train)
+cv.o <- krige.cv(lgpr ~ 1, baltimore, model=fit.train, nfold=5,
+verbose=FALSE)
+#summary(cv.o)
+```
+
+```{r,echo=F}
+### plot Kriging validation and cross-validation errors
+## colours: validation: bubble() default: palette()[2:3]
+## colours: x-valid: palette()[4:5]
+## arguments
+## kv.o SpatialPointsDataFrame from kriging to validation points
+## var1 prefix for kriging field name *.pred, e.g. "var1"
+## valid.pts SpatialPointsDataFrame with validation points
+## f field name (quoted) or number for point data values
+## cv.o SpatialPointsDataFrame from x-validation kriging
+## title
+plot.valids <- function(kv.o, var1, valid.pts, f, cv.o, title="") {
+# validation errors
+to.eval <- paste("diff <- kv.o$", paste(var1,"pred",sep="."),
+" - valid.pts[[f]]")
+eval(parse(text=to.eval))
+extreme <- max(abs(range(diff, as.data.frame(cv.o)$residual)))
+d <- SpatialPointsDataFrame(kv.o, data=as.data.frame(diff))
+b1 <- bubble(d,
+main=paste(title,"Validation errors"),
+maxsize = 1.5*(max(abs(range(diff))))/extreme,
+panel = function(x, ...) {
+panel.xyplot(x, ...);
+panel.grid(h=-1, v=-1, col="darkgrey")}
+)
+b2 <- bubble(cv.o, z="residual",
+main=paste(title,"Cross-validation errors"), col=c(4,5),
+maxsize = 1.5*(max(abs(range(cv.o$residual))))/extreme,
+panel = function(x, ...) {
+panel.xyplot(x, ...);
+panel.grid(h=-1, v=-1, col="darkgrey")}
+)
+print(b1, split=c(1, 1, 2, 1), more=T)
+print(b2, split=c(2, 1, 2, 1), more=F)
+}
+
+
+
+plot.valids(k, "var1", baltimore.test, "lgpr", cv.o, "")
+```
+
+The fitted model seems good with small MSE and MAE.
+```{r}
+summary(cv.o$observed)
+sqrt(mean((cv.o$residual)^2))#mse
+sqrt(mean(abs(cv.o$residual)))#mae
+```
+
+At last, I generated many grid points and predicted the price at these points with the fitted model on the train set.
+
+
+```{r,include=F}
+plot(baltimore@coords)
+summary(baltimore@coords)
+```
+
+
+```{r,echo=F}
+grid <- makegrid(baltimore, cellsize = 3)
+names(grid)<-c("X","Y")
+coordinates(grid) <- ~ X+Y
+
+
+
+
+lgpr.kriged = krige(log(PRICE)~1, baltimore, grid, model = fit.train)
+ 
+# str(lgpr.kriged)
+ spplot(lgpr.kriged["var1.pred"],main="Prediction valude at grid (cellsize=3)")
+# spplot(lgpr.kriged["var1.var"],)
+```
+
+
+```{r,echo=F}
+xyplot(Y ~ X, as.data.frame(baltimore), asp="iso",
+panel = function(x, ...) {
+panel.points(coordinates(baltimore),
+cex=0.5*(log(baltimore$PRICE) - 1),
+pch=20, col="blue");
+panel.grid(h=-1, v=-1, col="darkgrey")
+},main="True distribution (point size indicates value)")
+```
+
+The prediction recovers the pattern which several annular bands locates around a low price center.
+
+
+
+
+
